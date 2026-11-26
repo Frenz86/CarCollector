@@ -8,7 +8,7 @@ import shutil
 import sys
 import threading
 from pathlib import Path
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
 
 from flask import Flask, Response, jsonify, request
 
@@ -26,6 +26,24 @@ CSV_FIELDS = ["title", "brand", "model", "body_type", "classification", "year", 
               "drive_side", "url", "fetched_at"]
 
 app = Flask(__name__)
+
+
+class VercelRoute:
+    """Vercel rewrites /api/x to /api/index?route=x; restore the original path for Flask routing."""
+
+    def __init__(self, wsgi):
+        self.wsgi = wsgi
+
+    def __call__(self, environ, start_response):
+        query = parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
+        route = query.pop("route", None)
+        if route is not None:
+            environ["PATH_INFO"] = "/api/" + route[0].strip("/")
+            environ["QUERY_STRING"] = urlencode([(k, v) for k, vs in query.items() for v in vs])
+        return self.wsgi(environ, start_response)
+
+
+app.wsgi_app = VercelRoute(app.wsgi_app)
 _lock = threading.Lock()
 _state = {}
 
