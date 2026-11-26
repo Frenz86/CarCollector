@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+requirements-dev.txt
+update_db.py
+README.md
